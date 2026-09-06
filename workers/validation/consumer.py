@@ -8,7 +8,7 @@ from typing import Any
 import httpx
 from aio_pika import IncomingMessage, Message
 from aio_pika.abc import AbstractChannel
-from bs4 import BeautifulSoup  # type: ignore
+from bs4 import BeautifulSoup
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
