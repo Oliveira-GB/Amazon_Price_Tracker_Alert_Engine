@@ -1,8 +1,8 @@
-from typing import Protocol
+
+from collections.abc import AsyncGenerator
 
 import aio_pika
 from aio_pika import Channel, Connection, ExchangeType
-from aio_pika.abc import AbstractRobustConnection
 from aio_pika.pool import Pool
 
 from core.config import settings
@@ -32,11 +32,11 @@ _channel_pool: Pool[Channel] | None = None
 async def init_rabbitmq() -> None:
     global _connection_pool, _channel_pool
 
-    def connection_factory() -> Connection:
-        return aio_pika.connect_robust(settings.RABBITMQ_URI)
+    async def connection_factory() -> aio_pika.RobustConnection:
+        return await aio_pika.connect_robust(settings.RABBITMQ_URI)
 
-    def channel_factory(connection: Connection) -> Channel:
-        return connection.channel()
+    async def channel_factory(connection: aio_pika.RobustConnection) -> Channel:
+        return await connection.channel()  # type: ignore[return-value]
 
     _connection_pool = Pool(
         connection_factory,
@@ -58,16 +58,18 @@ async def close_rabbitmq() -> None:
         _connection_pool = None
 
 
-async def get_channel() -> Channel:
+async def get_channel() -> AsyncGenerator[Channel, None]:
     if _channel_pool is None:
         await init_rabbitmq()
+    assert _channel_pool is not None
     async with _channel_pool.acquire() as channel:
         yield channel
 
 
-async def get_connection() -> Connection:
+async def get_connection() -> AsyncGenerator[Connection, None]:
     if _connection_pool is None:
         await init_rabbitmq()
+    assert _connection_pool is not None
     async with _connection_pool.acquire() as connection:
         yield connection
 
@@ -84,7 +86,7 @@ async def setup_exchange_and_queues() -> None:
 
     for queue_key, queue_name in QUEUE_NAMES.items():
         dlq_name = DLQ_NAMES[queue_key]
-        dlq = await channel.declare_queue(
+        await channel.declare_queue(
             dlq_name,
             durable=True,
             arguments={"x-message-ttl": settings.DLQ_MESSAGE_TTL_DAYS * 86400000},

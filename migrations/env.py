@@ -1,20 +1,13 @@
 import os
 from logging.config import fileConfig
 
-from dotenv import load_dotenv
-from sqlalchemy import pool
-from sqlalchemy import create_engine
-from sqlalchemy.engine import Connection
-
 from alembic import context
+from dotenv import load_dotenv
+from sqlalchemy import create_engine, pool
 
 load_dotenv()
 
-from models.base import Base
-from models.user import User
-from models.product import Product
-from models.user_product import UserProduct
-from models.price_history import PriceHistory
+from models.base import Base  # noqa: E402
 
 config = context.config
 

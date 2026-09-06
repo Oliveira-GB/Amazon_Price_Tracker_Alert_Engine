@@ -1,17 +1,15 @@
-import asyncio
-import signal
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 import structlog
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from core.config import settings
-from core.database import engine, async_session_factory
-from core.rabbitmq import init_rabbitmq, close_rabbitmq
-from core.logging import configure_logging
 from api.routes import webhook
+from core.config import settings
+from core.database import engine
+from core.logging import configure_logging
+from core.rabbitmq import close_rabbitmq, init_rabbitmq
 
 logger: structlog.BoundLogger | None = None
 

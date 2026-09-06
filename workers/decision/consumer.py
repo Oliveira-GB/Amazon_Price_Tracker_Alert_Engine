@@ -1,4 +1,5 @@
 import asyncio
+import signal
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -194,20 +195,22 @@ async def run() -> None:
     worker = DecisionWorker()
 
     loop = asyncio.get_event_loop()
-    for sig in (asyncio.SIGINT, asyncio.SIGTERM):
+    for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, worker.stop)
 
     try:
         await worker.connect()
         logger.info("worker_connected", queue=worker.queue_name)
 
+        if worker._queue is None:
+            raise RuntimeError("Queue not initialized")
         async with worker._queue.iterator() as queue_iter:
             logger.info("worker_consuming", queue=worker.queue_name)
             async for message in queue_iter:
                 if worker._shutdown_event.is_set():
                     await message.nack(requeue=True)
                     break
-                await worker.process_message(message)
+                await worker.process_message(message)  # type: ignore[arg-type]
 
     except asyncio.CancelledError:
         logger.info("worker_cancelled")

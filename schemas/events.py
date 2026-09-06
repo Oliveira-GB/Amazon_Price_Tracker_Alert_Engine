@@ -1,11 +1,11 @@
 import uuid
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class AlertType(str, Enum):
+class AlertType(StrEnum):
     TARGET_PRICE = "target_price"
     ALL_TIME_LOW = "all_time_low"
     SYSTEM_MESSAGE = "system_message"

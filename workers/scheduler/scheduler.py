@@ -11,12 +11,14 @@ from sqlalchemy import select
 from core.config import settings
 from core.database import async_session_factory
 from core.logging import configure_logging
+from core.quota_monitor import CloudAMQPQuotaMonitor
 from core.rabbitmq import QUEUE_NAMES
 from models.product import Product, ProductStatus
 from schemas.commands import ScrapeCommand
 
 logger: Any = None
 scheduler = AsyncIOScheduler()
+quota_monitor = CloudAMQPQuotaMonitor()
 
 
 async def publish_scrape_jobs() -> None:
@@ -25,6 +27,16 @@ async def publish_scrape_jobs() -> None:
         logger = configure_logging("SchedulerWorker")
 
     logger.info("scheduler_tick_started")
+
+    if settings.QUOTA_CHECK_ENABLED:
+        quota_exceeded = await quota_monitor.check_and_alert()
+        if quota_exceeded:
+            logger.critical(
+                "scheduler_quota_exceeded_aborting_publish",
+                threshold=settings.CLOUDAMQP_QUOTA_THRESHOLD,
+                limit=settings.CLOUDAMQP_QUOTA_LIMIT,
+            )
+            return
 
     connection = await aio_pika.connect_robust(settings.RABBITMQ_URI)
     channel = await connection.channel()

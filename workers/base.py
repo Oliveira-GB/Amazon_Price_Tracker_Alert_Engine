@@ -54,11 +54,12 @@ class BaseWorker(ABC):
         try:
             await self.process_message(message)
         except Exception as e:
-            logger.error(
-                "message_processing_failed",
-                error=str(e),
-                queue=self.queue_name,
-            )
+            if logger:
+                logger.error(
+                    "message_processing_failed",
+                    error=str(e),
+                    queue=self.queue_name,
+                )
             await message.nack(requeue=False)
 
     async def start(self) -> None:
@@ -76,13 +77,15 @@ class BaseWorker(ABC):
             await self.connect()
             logger.info("worker_connected", queue=self.queue_name)
 
+            if self._queue is None:
+                raise RuntimeError("Queue not initialized after connect()")
             async with self._queue.iterator() as queue_iter:
                 logger.info("worker_consuming", queue=self.queue_name)
                 async for message in queue_iter:
                     if self._shutdown_event.is_set():
                         await message.nack(requeue=True)
                         break
-                    await self._on_message(message)
+                    await self._on_message(message)  # type: ignore[arg-type]
 
         except asyncio.CancelledError:
             logger.info("worker_cancelled")
@@ -94,7 +97,8 @@ class BaseWorker(ABC):
             logger.info("worker_stopped")
 
     def _handle_shutdown(self) -> None:
-        logger.info("shutdown_signal_received")
+        if logger:
+            logger.info("shutdown_signal_received")
         self._shutdown_event.set()
 
     async def stop(self) -> None:

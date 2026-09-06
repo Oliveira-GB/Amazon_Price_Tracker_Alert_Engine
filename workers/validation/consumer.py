@@ -1,5 +1,6 @@
 import asyncio
 import re
+import signal
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -111,7 +112,7 @@ class ValidationWorker(BaseWorker):
             user_id=uuid.UUID("00000000-0000-0000-0000-000000000000"),
             telegram_chat_id=command.telegram_chat_id,
             product_id=product_id,
-            asin=asins[0] if asins else "UNKNOWN",
+            asin=asins[0] if asins else "UNKNOWN000",
             title=title,
             image_url=None,
             url=None,
@@ -147,7 +148,7 @@ class ValidationWorker(BaseWorker):
             user_id=uuid.UUID("00000000-0000-0000-0000-000000000000"),
             telegram_chat_id=command.telegram_chat_id,
             product_id=uuid.UUID("00000000-0000-0000-0000-000000000000"),
-            asin="UNKNOWN",
+            asin="UNKNOWN000",
             title=None,
             image_url=None,
             url=None,
@@ -194,6 +195,8 @@ class ValidationWorker(BaseWorker):
 
                 asin = asins[0]
 
+                if self._http_session is None:
+                    raise RuntimeError("HTTP session not initialized")
                 resolved_url = await resolve_url(self._http_session, command.raw_url)
                 final_asins = extract_asins_from_text(resolved_url)
                 if final_asins:
@@ -270,6 +273,8 @@ class ValidationWorker(BaseWorker):
         is_new = product is None
 
         if is_new:
+            if self._http_session is None:
+                raise RuntimeError("HTTP session not initialized")
             title, image_url = await fetch_title_and_image(self._http_session, asin)
             product = Product(
                 asin=asin,
@@ -280,9 +285,10 @@ class ValidationWorker(BaseWorker):
             )
             session.add(product)
             await session.flush()
-        elif product.url != url:
+        elif product is not None and product.url != url:
             product.url = url
 
+        assert product is not None
         return product, is_new
 
     async def _create_subscription(
@@ -319,20 +325,22 @@ async def run() -> None:
     worker = ValidationWorker()
 
     loop = asyncio.get_event_loop()
-    for sig in (asyncio.SIGINT, asyncio.SIGTERM):
+    for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, worker.stop)
 
     try:
         await worker.connect()
         logger.info("worker_connected", queue=worker.queue_name)
 
+        if worker._queue is None:
+            raise RuntimeError("Queue not initialized")
         async with worker._queue.iterator() as queue_iter:
             logger.info("worker_consuming", queue=worker.queue_name)
             async for message in queue_iter:
                 if worker._shutdown_event.is_set():
                     await message.nack(requeue=True)
                     break
-                await worker.process_message(message)
+                await worker.process_message(message)  # type: ignore[arg-type]
 
     except asyncio.CancelledError:
         logger.info("worker_cancelled")

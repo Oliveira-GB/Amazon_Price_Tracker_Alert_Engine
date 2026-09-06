@@ -1,6 +1,7 @@
 import asyncio
 import random
 import re
+import signal
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -74,9 +75,14 @@ class CircuitBreaker:
 
 
 def extract_price(text: str) -> float | None:
-    match = re.search(r"[\d.,]+", text.replace(",", "."))
+    match = re.search(r"[\d.,]+", text)
     if match:
-        price_str = match.group().replace(",", "")
+        price_str = match.group()
+        if "," in price_str:
+            # Brazilian format: dots as thousands separators, comma as decimal
+            price_str = price_str.replace(".", "").replace(",", ".")
+        else:
+            price_str = price_str.replace(",", "")
         try:
             return float(price_str)
         except ValueError:
@@ -172,6 +178,8 @@ class ScraperWorker(BaseWorker):
             "Accept-Encoding": "gzip, deflate, br",
         }
 
+        if self._http_session is None:
+            raise RuntimeError("HTTP session not initialized")
         response = await self._http_session.get(
             url,
             headers=headers,
@@ -334,20 +342,22 @@ async def run() -> None:
     worker = ScraperWorker()
 
     loop = asyncio.get_event_loop()
-    for sig in (asyncio.SIGINT, asyncio.SIGTERM):
+    for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, worker.stop)
 
     try:
         await worker.connect()
         logger.info("worker_connected", queue=worker.queue_name)
 
+        if worker._queue is None:
+            raise RuntimeError("Queue not initialized")
         async with worker._queue.iterator() as queue_iter:
             logger.info("worker_consuming", queue=worker.queue_name)
             async for message in queue_iter:
                 if worker._shutdown_event.is_set():
                     await message.nack(requeue=True)
                     break
-                await worker.process_message(message)
+                await worker.process_message(message)  # type: ignore[arg-type]
 
     except asyncio.CancelledError:
         logger.info("worker_cancelled")

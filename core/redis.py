@@ -1,7 +1,6 @@
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
-import redis.asyncio as redis
 from redis.asyncio import ConnectionPool, Redis
 
 from core.config import settings
@@ -33,6 +32,7 @@ async def close_redis() -> None:
 async def get_redis() -> Redis:
     if _client is None:
         await init_redis()
+    assert _client is not None
     return _client
 
 
