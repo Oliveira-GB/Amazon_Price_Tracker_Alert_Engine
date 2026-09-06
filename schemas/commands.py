@@ -1,11 +1,11 @@
 import uuid
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field
 
 
-class MessageType(str, Enum):
+class MessageType(StrEnum):
     ITEM_VALIDATION_COMMAND = "item_validation_command"
     SCRAPE_COMMAND = "scrape_command"
     PRICE_UPDATED_EVENT = "price_updated_event"

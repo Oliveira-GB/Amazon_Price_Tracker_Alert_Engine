@@ -1,4 +1,5 @@
 import asyncio
+import signal
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -194,7 +195,7 @@ async def run() -> None:
     worker = DecisionWorker()
 
     loop = asyncio.get_event_loop()
-    for sig in (asyncio.SIGINT, asyncio.SIGTERM):
+    for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, worker.stop)
 
     try:

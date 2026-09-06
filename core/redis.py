@@ -1,7 +1,6 @@
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
-import redis.asyncio as redis
 from redis.asyncio import ConnectionPool, Redis
 
 from core.config import settings

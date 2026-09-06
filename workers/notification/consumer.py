@@ -1,5 +1,6 @@
 import asyncio
 import re
+import signal
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -232,7 +233,7 @@ async def run() -> None:
     global logger
     logger = configure_logging("NotificationWorker")
 
-    for sig in (asyncio.SIGINT, asyncio.SIGTERM):
+    for sig in (signal.SIGINT, signal.SIGTERM):
         loop = asyncio.get_event_loop()
         loop.add_signal_handler(sig, shutdown)
 

@@ -1,8 +1,6 @@
-from typing import Protocol
 
 import aio_pika
 from aio_pika import Channel, Connection, ExchangeType
-from aio_pika.abc import AbstractRobustConnection
 from aio_pika.pool import Pool
 
 from core.config import settings
@@ -84,7 +82,7 @@ async def setup_exchange_and_queues() -> None:
 
     for queue_key, queue_name in QUEUE_NAMES.items():
         dlq_name = DLQ_NAMES[queue_key]
-        dlq = await channel.declare_queue(
+        await channel.declare_queue(
             dlq_name,
             durable=True,
             arguments={"x-message-ttl": settings.DLQ_MESSAGE_TTL_DAYS * 86400000},
