@@ -8,7 +8,7 @@ from typing import Any
 import httpx
 from aio_pika import IncomingMessage, Message
 from aio_pika.abc import AbstractChannel
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup  # type: ignore[import-untyped]
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -58,12 +58,20 @@ async def fetch_title_and_image(session: httpx.AsyncClient, asin: str) -> tuple[
         title = None
         title_tag = soup.find("input", {"id": "productTitle"})
         if title_tag:
-            title = title_tag.get("value", "").strip()
+            raw_title = title_tag.get("value", "")
+            if isinstance(raw_title, str):
+                title = raw_title.strip()
 
         image_url = None
         image_tag = soup.find("img", {"id": "landingImage"})
         if image_tag:
-            image_url = image_tag.get("src") or image_tag.get("data-old-hires")
+            src = image_tag.get("src")
+            if isinstance(src, str):
+                image_url = src
+            else:
+                old_hires = image_tag.get("data-old-hires")
+                if isinstance(old_hires, str):
+                    image_url = old_hires
 
         return title if title else None, image_url
     except Exception:

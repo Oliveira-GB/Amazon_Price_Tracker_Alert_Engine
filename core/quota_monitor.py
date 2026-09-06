@@ -66,7 +66,7 @@ class CloudAMQPQuotaMonitor:
             timeout=10.0,
         )
         response.raise_for_status()
-        return response.json()
+        return dict(response.json())
 
     async def _send_admin_alert(self, consumed: int, ratio: float) -> None:
         if not self._admin_chat_id or not self._bot_token:
