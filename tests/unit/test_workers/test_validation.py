@@ -1,10 +1,8 @@
 import uuid
-from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from aio_pika import IncomingMessage
-from bs4 import BeautifulSoup
 
 from workers.validation.consumer import (
     ValidationWorker,
