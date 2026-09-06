@@ -30,5 +30,9 @@ class Settings(BaseSettings):
     DB_POOL_SIZE: int = 10
     DB_MAX_OVERFLOW: int = 20
 
+    CLOUDAMQP_QUOTA_LIMIT: int = 1_000_000
+    CLOUDAMQP_QUOTA_THRESHOLD: float = 0.95
+    QUOTA_CHECK_ENABLED: bool = True
+
 
 settings = Settings()
