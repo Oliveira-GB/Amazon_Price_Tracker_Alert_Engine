@@ -1,12 +1,11 @@
 import asyncio
+import signal
 from abc import ABC, abstractmethod
-from typing import Optional
 
 import aio_pika
-import signal
 import structlog
 from aio_pika import IncomingMessage
-from aio_pika.abc import AbstractRobustConnection, AbstractChannel, AbstractQueue
+from aio_pika.abc import AbstractChannel, AbstractQueue, AbstractRobustConnection
 from aio_pika.pool import Pool
 
 from core.config import settings
