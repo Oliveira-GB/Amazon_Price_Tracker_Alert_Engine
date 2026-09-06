@@ -2,10 +2,14 @@
 
 ## 1. Document Metadata
 * **Product/Project Name:** Amazon Price Tracker & Alert Engine
-* **Document Version:** 01
-* **Update Date:** September 5, 2026
+* **Document Version:** 02
+* **Update Date:** September 6, 2026
 * **Author(s):** Gabriel
-* **Status:** Draft
+* **Status:** Phase 1 Complete
+
+### 1.1. Changelog / Architectural Decision Records (ADR)
+* **[09/06/2026] - v02:** Phase 1 implementation complete. All 6 workers implemented and operational. Added known tech debts from Phase 1 review.
+* **[09/05/2026] - v01:** Initial draft version.
 
 ---
 
@@ -258,3 +262,20 @@ Sent by the API right after the user sends the link, for background processing.
   "raw_url": "[https://amzn.to/](https://amzn.to/)...",
   "timestamp": "2026-09-05T09:50:00Z"
 }
+
+---
+
+## 9. Phase 1 Known Tech Debts & Accepted Gaps
+
+The following items were identified during Phase 1 implementation review and are intentionally deferred to Phase 2 or future iterations. They represent accepted trade-offs given the MVP scope and zero-cost constraints.
+
+| # | Item | Location | Description | Impact |
+|---|------|----------|-------------|--------|
+| TD-01 | Product IDLE Transition | PRD 6.1, AGENTS 3.6 | When the last User_Product relationship is deleted, the product is hard-deleted rather than transitioning to IDLE status. The Scheduler will not waste resources on unfollowed products since they are removed entirely. | Low — Scheduler may occasionally attempt to scrape deleted products; requires future UPSERT logic |
+| TD-02 | Race Condition (Concurrent ASIN Submission) | PRD 6.1, AGENTS 3.2 | Two users submitting the same ASIN simultaneously uses check-then-insert rather than database-level UPSERT/ON CONFLICT. Under high concurrency, a race condition could result in duplicate product records. | Medium — Rare in MVP scale; requires DB constraint or ON CONFLICT DO NOTHING |
+| TD-03 | Quota Re-Check in Validation Worker | PRD 6.1 | The quota check (50 items/user) is enforced in the API Gateway rather than the Validation Worker. If a user's quota changes between API receipt and validation processing, the worker will still register the product. | Low — Quota is unlikely to change during async processing window |
+| TD-04 | Volatility-Based Frequency Scheduling | PRD 6.2 | Scheduler uses a fixed 6-hour interval for all products. Dynamic frequency adjustment based on product popularity or price volatility is not implemented. | Medium — All products consume equal resources regardless of actual need |
+| TD-05 | Anomaly Price Sanitization | PRD 6.3 | Absurd price variations (e.g., R$5000 to R$10) are not filtered. Scraping errors or scammer sellers could corrupt the all-time-low metric. | Medium — Could distort decision engine trigger accuracy |
+| TD-06 | Affiliate Tag Insertion | PRD 6.5 | Notification URLs do not embed affiliate tags. Revenue monetization via Amazon Associates is not active. | None — Out of MVP scope |
+| TD-07 | Monthly Quota Hard Stop | PRD N/A, AGENTS 4 | No monitoring service checks CloudAMQP message consumption (1M/month limit). The Scheduler does not auto-interrupt at 95% threshold. | High — Free tier quota exhaustion risk without warning |
+| TD-08 | DLQ Mass Reprocessing | AGENTS 0.2 | Messages in DLQs require manual inspection via RabbitMQ dashboard. No CLI or dashboard for bulk reprocessing exists. | Medium — Operational overhead for failure recovery |

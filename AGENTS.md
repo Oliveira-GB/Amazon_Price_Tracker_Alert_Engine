@@ -2,12 +2,13 @@
 
 ## 0. Document Versioning and Evolution
 <!-- This is a living document. Update agent statuses and rules as the project advances. -->
-* **Version:** 0.4
+* **Version:** 0.5
 * **Last Updated:** September 6, 2026
-* **Overall Project Status:** Planning / Design
+* **Overall Project Status:** Phase 1 Complete / Development
 
 ### 0.1. Architectural Decision Records (ADR / Changelog)
 <!-- Record major direction changes and the REASON why they occurred here. -->
+* **[09/06/2026] - v0.5:** Phase 1 implementation review complete. All 6 workers (API Gateway, Validation, Scheduler, Scraper, Decision, Notification) are functional. Updated worker status from "Skeleton Created" to "Completed". Documented spec-vs-implementation deviations as accepted tech debts.
 * **[09/06/2026] - v0.4:** Added Graceful Shutdown rules, Consumer Idempotency, and Strict Data Contracts (Pydantic) to prepare for the start of development.
 * **[09/06/2026] - v0.3:** Adopted Monorepo pattern to simplify deployment. Included QoS (Prefetch Count) requirement in RabbitMQ for load balancing, use of Alembic for migrations, and definition of Docker Compose for the local environment.
 * **[09/06/2026] - v0.2:** Centralized all outputs to Telegram exclusively in the `Notification Worker` to respect the Single Responsibility Principle (SRP). Included strict Timeout and Circuit Breaker rules to prevent workers from freezing on network calls.
@@ -16,6 +17,7 @@
 <!-- List what was done in a simplified way in the MVP and will require future refactoring. -->
 * **Anti-Bot Evasion:** We currently rely only on Jitter and User-Agent rotation. If Amazon applies blocks by native Cloud IP, we will have to plan the introduction of Residential Proxies.
 * **DLQ Management:** Currently, messages in the DLQ require manual inspection via the RabbitMQ dashboard. A dedicated dashboard/CLI for mass reprocessing is missing.
+* **Phase 1 Accepted Gaps (Post-Implementation Review):** During Phase 1 code review, several deviations from the original spec were identified and accepted as known tech debts. See Section 7 for the full inventory.
 
 ---
 
@@ -57,7 +59,7 @@ The system uses **RabbitMQ** (via CloudAMQP) as its backbone. The messaging topo
 ## 3. Agent Catalog (Workers)
 
 ### 3.1. API / Telegram Gateway Agent
-* **Implementation Status:** [x] **Skeleton Created** | [ ] TDD/Tests | [ ] In dev | [ ] Completed
+* **Implementation Status:** [x] Skeleton Created | [x] TDD/Tests | [x] In dev | [x] **Completed**
 * **Primary Responsibility:** Synchronous entry point of the system. Receives Telegram webhooks (messages, commands, links), validates the user, enforces quota rules (limit of 50 ASINs), and queues heavy processing to avoid slow response times to the user.
 * **Specific Tech Stack:** `FastAPI`, `aiogram` (or native `httpx` requests for webhook), `aio-pika`, `SQLAlchemy (asyncpg)`.
 * **Triggers (Input Triggers):** External HTTP POST request triggered by the Telegram API.
@@ -78,7 +80,7 @@ The system uses **RabbitMQ** (via CloudAMQP) as its backbone. The messaging topo
   * *Sad Paths / Resilience:* RabbitMQ is down -> gateway catches the network exception, warns the user "System currently unavailable" (HTTP 200 for Telegram).
 
 ### 3.2. Warm-up / Validation Worker
-* **Implementation Status:** [x] **Skeleton Created** | [ ] TDD/Tests | [ ] In dev | [ ] Completed
+* **Implementation Status:** [x] Skeleton Created | [x] TDD/Tests | [x] In dev | [x] **Completed**
 * **Primary Responsibility:** Take raw links just sent by users, clean useless parameters, discover the true ASIN (resolving short links like `amzn.to`), extract the official photo and title from Amazon, and consolidate the registration.
 * **Specific Tech Stack:** `aio-pika`, `httpx` (for requests and redirects), `beautifulsoup4`, `SQLAlchemy`.
 * **Triggers (Input Triggers):** Consumption of the `item.validation.queue` queue.
@@ -99,7 +101,7 @@ The system uses **RabbitMQ** (via CloudAMQP) as its backbone. The messaging topo
   * *Sad Paths / Resilience:* Amazon blocking warm-up requests (503) -> worker requeues the message; after 3 attempts, goes to the DLQ and the user receives "Temporary error registering product".
 
 ### 3.3. Cron / Scheduler Agent
-* **Implementation Status:** [x] **Skeleton Created** | [ ] TDD/Tests | [ ] In dev | [ ] Completed
+* **Implementation Status:** [x] Skeleton Created | [x] TDD/Tests | [x] In dev | [x] **Completed**
 * **Primary Responsibility:** Passive orchestrator. Wakes up at defined intervals, scans the database for products that need to be updated, and packages jobs in the Scraper queue.
 * **Specific Tech Stack:** Python script (`asyncio`) packaged in a native host Cron Job, or a library like `APScheduler`. `SQLAlchemy`, `aio-pika`.
 * **Triggers (Input Triggers):** Static time cron (e.g., every 6 hours).
@@ -116,7 +118,7 @@ The system uses **RabbitMQ** (via CloudAMQP) as its backbone. The messaging topo
   * *Sad Paths / Resilience:* Loss of connection with the Message Broker in the middle of the iteration -> must log the error, not crash, and ensure that in the next Cron round the pending batch is sent.
 
 ### 3.4. Scraper Worker
-* **Implementation Status:** [x] **Skeleton Created** | [ ] TDD/Tests | [ ] In dev | [ ] Completed
+* **Implementation Status:** [x] Skeleton Created | [x] TDD/Tests | [x] In dev | [x] **Completed**
 * **Primary Responsibility:** The "factory floor worker". Focuses purely on downloading the Amazon HTML passing through the protections, performing DOM parsing, and checking if there are new prices. Scales horizontally (there can be 5, 10 simultaneous instances).
 * **Specific Tech Stack:** `aio-pika`, `httpx` (with manual Header manipulation), `beautifulsoup4`, `SQLAlchemy`.
 * **Triggers (Input Triggers):** Consumption of the `scrape.jobs.queue` queue.
@@ -138,7 +140,7 @@ The system uses **RabbitMQ** (via CloudAMQP) as its backbone. The messaging topo
   * *Sad Paths / Resilience:* Amazon changes the CSS class of the price -> Parser fails gracefully (throws trackable ParsingError exception in Sentry), does not save corrupted data.
 
 ### 3.5. Decision Engine Worker
-* **Implementation Status:** [x] **Skeleton Created** | [ ] TDD/Tests | [ ] In dev | [ ] Completed
+* **Implementation Status:** [x] Skeleton Created | [x] TDD/Tests | [x] In dev | [x] **Completed**
 * **Primary Responsibility:** Analyze price changes in real time and decide *who* should be notified, applying anti-spam restrictions (Cooldown).
 * **Specific Tech Stack:** `aio-pika`, `SQLAlchemy`, `redis.asyncio`.
 * **Triggers (Input Triggers):** Consumption of the `price.decision.queue` queue.
@@ -157,7 +159,7 @@ The system uses **RabbitMQ** (via CloudAMQP) as its backbone. The messaging topo
   * *Sad Paths / Resilience:* Redis returns ConnectionRefused -> Worker does not die, applies fallback using the relational table.
 
 ### 3.6. Notification Worker
-* **Implementation Status:** [x] **Skeleton Created** | [ ] TDD/Tests | [ ] In dev | [ ] Completed
+* **Implementation Status:** [x] Skeleton Created | [x] TDD/Tests | [x] In dev | [x] **Completed**
 * **Primary Responsibility:** Receive alert orders and interact with Telegram via HTTP to deliver the final messages with actionable links. Also responsible for the forced termination of the lifecycle (Hard Delete) in the event of a ban.
 * **Specific Tech Stack:** `aio-pika`, `aiogram` (or `httpx`), `SQLAlchemy`.
 * **Triggers (Input Triggers):** Consumption of the `telegram.notification.queue` and `user.maintenance.queue` queues.
@@ -211,8 +213,24 @@ The system uses **RabbitMQ** (via CloudAMQP) as its backbone. The messaging topo
   * **Messaging Quota (CloudAMQP):** The limit of the free plan is 1,000,000 messages/month. A monitoring service (or the Scheduler itself) must check the consumption via the RabbitMQ API. If consumption reaches **95% of the monthly quota**, the `Cron / Scheduler Agent` must automatically enter interrupt mode (Hard Stop), pausing new scans and logging a critical alert.
   * The application must be coded with the philosophy of **"Accepting unavailability for the sake of zero cost"**. If the limits of AWS, Supabase, or CloudAMQP are reached, the application must fail safely, without generating financial charges (Billing Overruns).
 
-## 5. Testing Guidelines (TDD & Quality)
-<!-- Strict rules for PR approval and test-driven development. -->
+## 7. Phase 1 Implementation Review — Accepted Tech Debts
+
+During the Phase 1 post-implementation review, the following deviations from the original specification were identified and **accepted as known tech debts**. They are documented here for traceability and future refinement.
+
+| ID | Gap | Spec Location | Actual Behavior | Accepted Risk |
+|----|-----|---------------|-----------------|---------------|
+| TD-01 | Product IDLE Transition | PRD 6.1, AGENTS 3.6 | When last User_Product is deleted, product is hard-deleted rather than set to IDLE | Low — Scheduler may attempt removed products; UPSERT/IDLE transition deferred |
+| TD-02 | Race Condition (Concurrent ASIN) | PRD 6.1, AGENTS 3.2 | Uses check-then-insert instead of ON CONFLICT DO NOTHING | Medium — Rare at MVP scale; DB-level UPSERT deferred |
+| TD-03 | Quota Re-Check in Validation | PRD 6.1 | Quota check enforced at API Gateway, not Validation Worker | Low — Quota unlikely to change during async window |
+| TD-04 | Volatility-Based Frequency | PRD 6.2 | Scheduler uses fixed 6h interval for all products | Medium — Equal resource allocation regardless of product activity |
+| TD-05 | Anomaly Price Sanitization | PRD 6.3 | No filtering of absurd variations (e.g., R$5000→R$10) | Medium — Could corrupt ATL metric; scraper validation deferred |
+| TD-06 | Affiliate Tag Insertion | PRD 6.5 | Notification URLs use clean Amazon links, no Associates tag | None — Monetization out of MVP scope |
+| TD-07 | Monthly Quota Hard Stop | AGENTS 4 | No monitoring of CloudAMQP message consumption; no auto-interrupt at 95% | High — Quota exhaustion risk without warning; monitoring deferred |
+| TD-08 | DLQ Mass Reprocessing | AGENTS 0.2 | DLQ messages require manual RabbitMQ dashboard inspection | Medium — Operational overhead; CLI deferred |
+
+---
+
+
 
 * **Mandatory Red-Green-Refactor:** No business code will be written before its corresponding test. The test suite must drive the architecture modeling.
 * **Local Environment (DevEnv - Docker Compose):** Before starting development, a local `docker-compose.yml` file must be created providing PostgreSQL, Redis, and RabbitMQ containers. Developers must not point the local environment to production/staging databases hosted in the cloud.
