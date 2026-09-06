@@ -202,13 +202,15 @@ async def run() -> None:
         await worker.connect()
         logger.info("worker_connected", queue=worker.queue_name)
 
+        if worker._queue is None:
+            raise RuntimeError("Queue not initialized")
         async with worker._queue.iterator() as queue_iter:
             logger.info("worker_consuming", queue=worker.queue_name)
             async for message in queue_iter:
                 if worker._shutdown_event.is_set():
                     await message.nack(requeue=True)
                     break
-                await worker.process_message(message)
+                await worker.process_message(message)  # type: ignore[arg-type]
 
     except asyncio.CancelledError:
         logger.info("worker_cancelled")

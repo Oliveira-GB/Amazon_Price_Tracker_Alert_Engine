@@ -62,7 +62,8 @@ async def get_or_create_user(session: Any, chat_id: str) -> User:
         await session.flush()
 
     user.last_seen_at = datetime.now(UTC)
-    return user
+    assert user is not None
+    return user  # type: ignore[no-any-return]
 
 
 async def get_user_subscription_count(session: Any, user_id: uuid.UUID) -> int:

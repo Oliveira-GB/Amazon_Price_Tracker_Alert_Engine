@@ -111,6 +111,8 @@ class NotificationWorker(BaseWorker):
                     return
 
         try:
+            if self._http_session is None:
+                raise RuntimeError("HTTP session not initialized")
             response = await self._http_session.post(
                 TELEGRAM_API_URL.format(bot_token=settings.TG_BOT_TOKEN),
                 json=build_telegram_message(alert),
@@ -281,8 +283,8 @@ async def run() -> None:
     try:
         logger.info("worker_started")
 
-        notif_task = asyncio.create_task(notif_queue.consume(handle_notif))
-        maint_task = asyncio.create_task(maint_queue.consume(handle_maint))
+        notif_task = asyncio.create_task(notif_queue.consume(handle_notif))  # type: ignore[arg-type]
+        maint_task = asyncio.create_task(maint_queue.consume(handle_maint))  # type: ignore[arg-type]
 
         await shutdown_event.wait()
 
