@@ -226,13 +226,16 @@ class ScraperWorker(BaseWorker):
                 if price_discount:
                     break
 
+        availability_div = soup.find("div", {"id": "availability"})
         out_of_stock = (
             soup.find(string=re.compile("não|estoque|indisponível|unavailable", re.I))
             is not None
         ) or (
             soup.find("div", {"id": "outOfStock"}) is not None
-            or soup.find("div", {"id": "availability"}) is not None
-            and "não" in soup.find("div", {"id": "availability"}).get_text().lower()
+            or (
+                availability_div is not None
+                and "não" in availability_div.get_text().lower()
+            )
         )
 
         return price_full, price_discount, out_of_stock
