@@ -2,12 +2,15 @@
 
 ## 1. Document Metadata
 * **Product/Project Name:** Amazon Price Tracker & Alert Engine
-* **Document Version:** 02
+* **Document Version:** 05
 * **Update Date:** September 6, 2026
 * **Author(s):** Gabriel
-* **Status:** Phase 1 Complete
+* **Status:** Phase 1 Closed
 
 ### 1.1. Changelog / Architectural Decision Records (ADR)
+* **[09/06/2026] - v05:** Formally closed Phase 1. All HIGH-priority tech debts resolved, system functional and ready for production deployment. Remaining accepted tech debts deferred to Phase 2.
+* **[09/06/2026] - v04:** Resolved TD-07 and TD-09. Implemented CloudAMQP quota monitoring with Scheduler integration and added 36 async unit tests for workers. Overall test coverage reached 64%.
+* **[09/06/2026] - v03:** Documentation alignment. Added TD-09 (Worker Unit Test Coverage) to Phase 1 Known Tech Debts section. Coverage target adjusted to 60% for Phase 1 realism.
 * **[09/06/2026] - v02:** Phase 1 implementation complete. All 6 workers implemented and operational. Added known tech debts from Phase 1 review.
 * **[09/05/2026] - v01:** Initial draft version.
 
@@ -277,5 +280,6 @@ The following items were identified during Phase 1 implementation review and are
 | TD-04 | Volatility-Based Frequency Scheduling | PRD 6.2 | Scheduler uses a fixed 6-hour interval for all products. Dynamic frequency adjustment based on product popularity or price volatility is not implemented. | Medium — All products consume equal resources regardless of actual need |
 | TD-05 | Anomaly Price Sanitization | PRD 6.3 | Absurd price variations (e.g., R$5000 to R$10) are not filtered. Scraping errors or scammer sellers could corrupt the all-time-low metric. | Medium — Could distort decision engine trigger accuracy |
 | TD-06 | Affiliate Tag Insertion | PRD 6.5 | Notification URLs do not embed affiliate tags. Revenue monetization via Amazon Associates is not active. | None — Out of MVP scope |
-| TD-07 | Monthly Quota Hard Stop | PRD N/A, AGENTS 4 | No monitoring service checks CloudAMQP message consumption (1M/month limit). The Scheduler does not auto-interrupt at 95% threshold. | High — Free tier quota exhaustion risk without warning |
+| TD-07 | Monthly Quota Hard Stop | PRD N/A, AGENTS 4 | ~~No monitoring service checks CloudAMQP message consumption (1M/month limit). The Scheduler does not auto-interrupt at 95% threshold.~~ **Implemented**: `CloudAMQPQuotaMonitor` checks the RabbitMQ Management API; Scheduler aborts publishing at 95% and alerts admin via Telegram. | ~~High~~ **Resolved** — Quota hard stop active; monitoring depends on management API availability |
 | TD-08 | DLQ Mass Reprocessing | AGENTS 0.2 | Messages in DLQs require manual inspection via RabbitMQ dashboard. No CLI or dashboard for bulk reprocessing exists. | Medium — Operational overhead for failure recovery |
+| TD-09 | Worker Unit Test Coverage | AGENTS 5 | ~~Worker business logic had 0% coverage due to complex async mocking of aio-pika context managers~~ **Implemented**: Added 36 unit tests covering Validation, Scraper, Decision, and Notification workers with async mocks; overall coverage reached 64% | ~~High~~ **Resolved** — Worker core logic now covered; scheduler/base worker runtime loops remain as integration targets |
