@@ -1,10 +1,15 @@
-from datetime import datetime
-import uuid
+from __future__ import annotations
 
-from sqlalchemy import DateTime, String, Integer, func
+from datetime import datetime
+from typing import TYPE_CHECKING
+
+from sqlalchemy import DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from models.base import Base, TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from models.user_product import UserProduct
 
 
 class User(Base, UUIDMixin, TimestampMixin):
@@ -30,11 +35,8 @@ class User(Base, UUIDMixin, TimestampMixin):
         nullable=True,
     )
 
-    subscriptions: Mapped[list["UserProduct"]] = relationship(
+    subscriptions: Mapped[list[UserProduct]] = relationship(
         "UserProduct",
         back_populates="user",
         cascade="all, delete-orphan",
     )
-
-
-from models.user_product import UserProduct

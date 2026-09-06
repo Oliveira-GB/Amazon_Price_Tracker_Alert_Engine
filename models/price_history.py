@@ -1,10 +1,16 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, DateTime, Float, Boolean, Index, func
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from models.base import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from models.product import Product
 
 
 class PriceHistory(Base, TimestampMixin):
@@ -48,10 +54,7 @@ class PriceHistory(Base, TimestampMixin):
         Index("ix_price_history_product_scraped", "product_id", "scraped_at"),
     )
 
-    product: Mapped["Product"] = relationship(
+    product: Mapped[Product] = relationship(
         "Product",
         back_populates="price_history",
     )
-
-
-from models.product import Product

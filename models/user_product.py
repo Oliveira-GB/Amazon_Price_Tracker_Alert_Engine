@@ -1,10 +1,17 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, DateTime, Float, Boolean, Index, func, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from models.base import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from models.product import Product
+    from models.user import User
 
 
 class UserProduct(Base, TimestampMixin):
@@ -42,15 +49,11 @@ class UserProduct(Base, TimestampMixin):
         Index("ix_user_products_user_active", "user_id", "is_active"),
     )
 
-    user: Mapped["User"] = relationship(
+    user: Mapped[User] = relationship(
         "User",
         back_populates="subscriptions",
     )
-    product: Mapped["Product"] = relationship(
+    product: Mapped[Product] = relationship(
         "Product",
         back_populates="subscriptions",
     )
-
-
-from models.user import User
-from models.product import Product

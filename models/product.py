@@ -1,14 +1,20 @@
-import uuid
-from datetime import datetime
-from enum import Enum
+from __future__ import annotations
 
-from sqlalchemy import DateTime, String, Text, Index, func
+from datetime import datetime
+from enum import StrEnum
+from typing import TYPE_CHECKING
+
+from sqlalchemy import DateTime, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from models.base import Base, TimestampMixin, UUIDMixin
 
+if TYPE_CHECKING:
+    from models.price_history import PriceHistory
+    from models.user_product import UserProduct
 
-class ProductStatus(str, Enum):
+
+class ProductStatus(StrEnum):
     ACTIVE = "ACTIVE"
     PAUSED = "PAUSED"
     UNAVAILABLE = "UNAVAILABLE"
@@ -64,17 +70,13 @@ class Product(Base, UUIDMixin, TimestampMixin):
         Index("ix_products_status_checked", "status", "last_checked_at"),
     )
 
-    subscriptions: Mapped[list["UserProduct"]] = relationship(
+    subscriptions: Mapped[list[UserProduct]] = relationship(
         "UserProduct",
         back_populates="product",
         cascade="all, delete-orphan",
     )
-    price_history: Mapped[list["PriceHistory"]] = relationship(
+    price_history: Mapped[list[PriceHistory]] = relationship(
         "PriceHistory",
         back_populates="product",
         cascade="all, delete-orphan",
     )
-
-
-from models.user_product import UserProduct
-from models.price_history import PriceHistory
