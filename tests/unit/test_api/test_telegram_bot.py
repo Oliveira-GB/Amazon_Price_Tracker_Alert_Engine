@@ -117,8 +117,7 @@ class TestTelegramBotDeleteMessage:
 class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_circuit_breaker_raises_when_open(self):
-        from datetime import timedelta
-        from datetime import UTC, datetime
+        from datetime import UTC, datetime, timedelta
 
         bot = TelegramBot(token="test_token")
         bot._circuit_open_until = datetime.now(UTC) + timedelta(seconds=60)
@@ -128,8 +127,7 @@ class TestCircuitBreaker:
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_closes_after_timeout(self):
-        from datetime import timedelta
-        from datetime import UTC, datetime
+        from datetime import UTC, datetime, timedelta
 
         bot = TelegramBot(token="test_token")
         bot._circuit_open_until = datetime.now(UTC) - timedelta(seconds=1)

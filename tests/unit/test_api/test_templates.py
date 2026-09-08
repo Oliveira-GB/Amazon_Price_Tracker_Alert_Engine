@@ -1,20 +1,18 @@
-import pytest
 
 from api.bot.templates import (
+    error_template,
     escape_markdown_v2,
     format_price,
-    product_list_template,
-    start_template,
     help_template,
-    quota_exceeded_template,
     processing_template,
-    error_template,
-    upgrade_requested_template,
+    product_paused_template,
     product_registered_template,
     product_removed_template,
-    product_paused_template,
     product_resumed_template,
+    quota_exceeded_template,
+    start_template,
     truncate,
+    upgrade_requested_template,
 )
 
 
