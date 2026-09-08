@@ -1,5 +1,5 @@
-from unittest.mock import AsyncMock, MagicMock, patch
 import uuid
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -177,7 +177,7 @@ class TestGetOrCreateUser:
         mock_session.flush = AsyncMock()
 
         with patch.object(settings, "MAX_USER_QUOTA", 50):
-            result = await get_or_create_user(mock_session, "chat123")
+            await get_or_create_user(mock_session, "chat123")
 
             mock_session.add.assert_called_once()
 
@@ -185,8 +185,9 @@ class TestGetOrCreateUser:
 class TestGetUserSubscriptionCount:
     @pytest.mark.asyncio
     async def test_get_user_subscription_count(self):
-        from api.bot.handlers import get_user_subscription_count
         import uuid
+
+        from api.bot.handlers import get_user_subscription_count
 
         mock_session = AsyncMock()
         mock_result = MagicMock()
