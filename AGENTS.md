@@ -2,9 +2,9 @@
 
 ## 0. Document Versioning and Evolution
 <!-- This is a living document. Update agent statuses and rules as the project advances. -->
-* **Version:** 0.9
-* **Last Updated:** September 6, 2026
-* **Overall Project Status:** Phase 1 Closed
+* **Version:** 1.0
+* **Last Updated:** September 8, 2026
+* **Overall Project Status:** Phase 2 Closed — Telegram Bot & Item Management complete. Ready for Phase 3 hardening.
 
 ### 0.1. Architectural Decision Records (ADR / Changelog)
 <!-- Record major direction changes and the REASON why they occurred here. -->
@@ -12,6 +12,7 @@
 * **[09/06/2026] - v0.6:** Documentation alignment: Added TD-09 (Worker Unit Test Coverage) to PRD.md Section 9. Adjusted pytest fail_under from 30 to 60 to match AGENTS.md Phase 1 coverage target.
 * **[09/06/2026] - v0.7:** Implemented TD-07 (CloudAMQP Monthly Quota Hard Stop). Added `core/quota_monitor.py`, quota-related env vars, Scheduler integration, and unit tests. Updated AGENTS.md env dictionary and resolved TD-07 in the Phase 1 tech debt table.
 * **[09/06/2026] - v0.8:** Implemented TD-09 (Worker Unit Test Coverage). Added 36 async unit tests for Validation, Scraper, Decision, and Notification workers using aio-pika/httpx mocks. Fixed `extract_price` Brazilian-format parsing bug and `AlertTriggeredEvent.asin` placeholder length in Validation Worker. Overall coverage reached 64%.
+* **[09/08/2026] - v1.0:** Formally closed Phase 2 (Telegram Bot & Item Management). Implemented resilient Telegram Bot client (`api/bot/`), refactored API Gateway webhook with inline keyboards and command handlers (/list, /pause, /delete, /request_upgrade), fixed worker CLI entry points, and added 58 API-focused unit tests. Overall tests increased from 141 to 199. Added `TG_BOT_WEBHOOK_SECRET` environment variable to separate webhook authentication from bot token.
 * **[09/06/2026] - v0.9:** Formally closed Phase 1. All HIGH-priority tech debts resolved (TD-07, TD-09), all 6 workers operational, 141 tests passing with 64% coverage. Remaining TD-01 through TD-06 and TD-08 accepted as low/medium risk for Phase 2.
 * **[09/06/2026] - v0.4:** Added Graceful Shutdown rules, Consumer Idempotency, and Strict Data Contracts (Pydantic) to prepare for the start of development.
 * **[09/06/2026] - v0.3:** Adopted Monorepo pattern to simplify deployment. Included QoS (Prefetch Count) requirement in RabbitMQ for load balancing, use of Alembic for migrations, and definition of Docker Compose for the local environment.
@@ -65,19 +66,21 @@ The system uses **RabbitMQ** (via CloudAMQP) as its backbone. The messaging topo
 ### 3.1. API / Telegram Gateway Agent
 * **Implementation Status:** [x] Skeleton Created | [x] TDD/Tests | [x] In dev | [x] **Completed**
 * **Primary Responsibility:** Synchronous entry point of the system. Receives Telegram webhooks (messages, commands, links), validates the user, enforces quota rules (limit of 50 ASINs), and queues heavy processing to avoid slow response times to the user.
-* **Specific Tech Stack:** `FastAPI`, `aiogram` (or native `httpx` requests for webhook), `aio-pika`, `SQLAlchemy (asyncpg)`.
+* **Specific Tech Stack:** `FastAPI`, native `httpx` requests for webhook, `aio-pika`, `SQLAlchemy (asyncpg)`. Bot logic extracted to dedicated `api/bot/` package (`client.py`, `handlers.py`, `keyboards.py`, `templates.py`).
 * **Triggers (Input Triggers):** External HTTP POST request triggered by the Telegram API.
 * **Actions and Business Logic (Core Logic):** 
-  1. Authenticates and extracts the `chat_id` and the message.
-  2. Identifies if it is a CRUD command (`/list`, `/pause`) or a URL submission.
+  1. Authenticates webhook via `TG_BOT_WEBHOOK_SECRET` header and extracts the `chat_id` and the message.
+  2. Identifies if it is a CRUD command (`/start`, `/list`, `/pause`, `/delete`, `/help`, `/request_upgrade`) or a URL submission.
   3. If URL, counts the user's records in the database. If >= 50, returns a block and instructs the use of `/request_upgrade`.
   4. If < 50, publishes an `ItemValidationCommand` on the broker, responds to Telegram with a "Processing link...", and closes the request.
+  5. Processes inline callback queries for product management (pause/resume/delete via inline keyboards).
 * **Outputs (Published Events / Outputs):** 
   * `ItemValidationCommand` injected into `item.validation.queue`.
   * HTTP 200 OK response to Telegram.
 * **Data Access (State & Storage):** PostgreSQL (Read on `Users` for quota validation, and basic CRUD operations on `User_Products` tables).
 * **Error Handling and Resilience:** 
   * Must respond HTTP 200 to Telegram even in the event of an internal failure, so that Telegram does not infinitely resend the same webhook (causing a request loop).
+  * Telegram Bot client implements retry with exponential backoff and circuit breaker for outbound API calls.
 * **Test Scenarios (TDD):**
   * *Happy Paths:* User sends a valid link and has 10 registered items -> receives 200 OK, message injected into the queue.
   * *Edge Cases:* User sends a link having exactly 50 items -> rejected by quota, queue is not triggered. User sends random text ("hello") -> responds with a help message.
@@ -252,7 +255,8 @@ During the Phase 1 post-implementation review, the following deviations from the
 | Variable | Use / Component / Agent | Criticality | Description and Rules |
 | :--- | :--- | :--- | :--- |
 | `RABBITMQ_URI` | **All Workers** and **API Gateway** | **Critical** | AMQP connection string with credentials (e.g., CloudAMQP URL). Essential for the entire system event bus. |
-| `TG_BOT_TOKEN` | **API Gateway** and **Notification Worker** | **Critical** | Token generated by Telegram's BotFather. Necessary to validate webhooks on entry and dispatch messages on exit. |
+| `TG_BOT_TOKEN` | **API Gateway** and **Notification Worker** | **Critical** | Token generated by Telegram's BotFather. Used to dispatch messages and (legacy) webhook validation. |
+| `TG_BOT_WEBHOOK_SECRET` | **API Gateway** | **Critical** | Secret token used by Telegram to authenticate webhook requests (configured via `setWebhook`). Must be different from `TG_BOT_TOKEN` for security. |
 | `DATABASE_URL` | **Gateway**, **Validation**, **Scheduler**, **Scraper**, **Decision**, **Notification** | **Critical** | PostgreSQL connection string. **Mandatory** to point to the `PgBouncer` (pooler) port and not directly to the database, to avoid connection exhaustion in the cloud. |
 | `REDIS_URL` | **Decision Engine Worker** | **High** | Redis connection string (e.g., Upstash/RedisLabs). Used to manage TTL keys (Anti-spam *Cooldown*) and fast caching of the lowest historical price. |
 | `ADMIN_TELEGRAM_ID` | **API Gateway** and **Logging System** | **Medium** | Administrator's `chat_id` (Dev/SRE). Used to route quota `/request_upgrade` requests and to receive critical infrastructure alerts (e.g., frozen queue). |
