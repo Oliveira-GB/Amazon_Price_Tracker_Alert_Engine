@@ -1,142 +1,167 @@
 import uuid
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 
-class TestHandleCommand:
+class TestHandleCommandIntegration:
     @pytest.mark.asyncio
-    async def test_start_command(self):
+    async def test_start_command_flow(self):
         from api.routes.webhook import handle_command
 
-        chat_id = "123456"
-        trace_id = uuid.uuid4()
-        sent_message = None
+        mock_bot = AsyncMock()
+        sent_text = None
 
-        async def capture_message(cid, msg, tid):
-            nonlocal sent_message
-            sent_message = msg
+        async def capture_send(chat_id, text, **kwargs):
+            nonlocal sent_text
+            sent_text = text
 
-        with patch("api.routes.webhook.send_text_message", new=capture_message):
-            await handle_command(chat_id, "/start", trace_id)
+        mock_bot.send_message = capture_send
 
-        assert sent_message is not None
-        assert "Bem-vindo" in sent_message or "Amazon" in sent_message
+        with patch("api.bot.handlers.get_or_create_user", new_callable=AsyncMock) as mock_get_user:
+            mock_user = MagicMock()
+            mock_user.quota_limit = 50
+            mock_get_user.return_value = mock_user
 
-    @pytest.mark.asyncio
-    async def test_help_command(self):
-        from api.routes.webhook import handle_command
+            await handle_command("chat123", "/start", uuid.uuid4(), mock_bot)
 
-        chat_id = "123456"
-        trace_id = uuid.uuid4()
-        sent_message = None
-
-        async def capture_message(cid, msg, tid):
-            nonlocal sent_message
-            sent_message = msg
-
-        with patch("api.routes.webhook.send_text_message", new=capture_message):
-            await handle_command(chat_id, "/help", trace_id)
-
-        assert sent_message is not None
-        assert "Comandos disponíveis" in sent_message or "/start" in sent_message
+        assert sent_text is not None
+        assert "Bem-vindo" in sent_text or "Amazon" in sent_text
 
     @pytest.mark.asyncio
-    async def test_list_command(self):
+    async def test_help_command_flow(self):
         from api.routes.webhook import handle_command
 
-        chat_id = "123456"
-        trace_id = uuid.uuid4()
+        mock_bot = AsyncMock()
+        sent_text = None
 
-        with patch("api.routes.webhook.send_list_message", new=AsyncMock()) as mock_list:
-            await handle_command(chat_id, "/list", trace_id)
-            mock_list.assert_called_once()
+        async def capture_send(chat_id, text, **kwargs):
+            nonlocal sent_text
+            sent_text = text
+
+        mock_bot.send_message = capture_send
+
+        await handle_command("chat123", "/help", uuid.uuid4(), mock_bot)
+
+        assert sent_text is not None
+        assert "Comandos" in sent_text or "/start" in sent_text
 
     @pytest.mark.asyncio
-    async def test_pause_command(self):
+    async def test_list_command_flow(self):
         from api.routes.webhook import handle_command
 
-        chat_id = "123456"
-        trace_id = uuid.uuid4()
-        sent_message = None
+        mock_bot = AsyncMock()
+        mock_bot.send_message = AsyncMock()
 
-        async def capture_message(cid, msg, tid):
-            nonlocal sent_message
-            sent_message = msg
+        with patch("api.bot.handlers.get_or_create_user", new_callable=AsyncMock) as mock_get_user:
+            mock_user = MagicMock()
+            mock_user.quota_limit = 50
+            mock_get_user.return_value = mock_user
 
-        with patch("api.routes.webhook.send_text_message", new=capture_message):
-            await handle_command(chat_id, "/pause", trace_id)
+            with patch("api.bot.handlers.get_user_subscriptions", new_callable=AsyncMock) as mock_subs:
+                mock_subs.return_value = []
 
-        assert sent_message is not None
-        assert "gerenciar" in sent_message.lower() or "pause" in sent_message.lower()
+                await handle_command("chat123", "/list", uuid.uuid4(), mock_bot)
+
+                mock_bot.send_message.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_request_upgrade_command(self):
+    async def test_pause_command_without_index(self):
         from api.routes.webhook import handle_command
 
-        chat_id = "123456"
-        trace_id = uuid.uuid4()
-        sent_message = None
+        mock_bot = AsyncMock()
+        sent_text = None
 
-        async def capture_message(cid, msg, tid):
-            nonlocal sent_message
-            sent_message = msg
+        async def capture_send(chat_id, text, **kwargs):
+            nonlocal sent_text
+            sent_text = text
 
-        with patch("api.routes.webhook.send_text_message", new=capture_message):
-            await handle_command(chat_id, "/request_upgrade", trace_id)
+        mock_bot.send_message = capture_send
 
-        assert sent_message is not None
-        assert "limite" in sent_message.lower() or "50" in sent_message
+        with patch("api.bot.handlers.get_or_create_user", new_callable=AsyncMock):
+            await handle_command("chat123", "/pause", uuid.uuid4(), mock_bot)
+
+        assert sent_text is not None
+        assert "/list" in sent_text
 
     @pytest.mark.asyncio
-    async def test_unknown_command(self):
+    async def test_request_upgrade_command_flow(self):
         from api.routes.webhook import handle_command
 
-        chat_id = "123456"
-        trace_id = uuid.uuid4()
-        sent_message = None
+        mock_bot = AsyncMock()
+        mock_bot.send_message = AsyncMock()
 
-        async def capture_message(cid, msg, tid):
-            nonlocal sent_message
-            sent_message = msg
+        with patch("api.bot.handlers.get_or_create_user", new_callable=AsyncMock) as mock_get_user:
+            mock_user = MagicMock()
+            mock_user.quota_limit = 50
+            mock_get_user.return_value = mock_user
 
-        with patch("api.routes.webhook.send_text_message", new=capture_message):
-            await handle_command(chat_id, "/unknown_cmd", trace_id)
+            with patch("api.bot.handlers.get_user_subscription_count", new_callable=AsyncMock) as mock_count:
+                mock_count.return_value = 45
 
-        assert sent_message is not None
-        assert "não reconhecido" in sent_message.lower()
+                await handle_command("chat123", "/request_upgrade", uuid.uuid4(), mock_bot)
+
+                assert mock_bot.send_message.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_unknown_command_flow(self):
+        from api.routes.webhook import handle_command
+
+        mock_bot = AsyncMock()
+        sent_text = None
+
+        async def capture_send(chat_id, text, **kwargs):
+            nonlocal sent_text
+            sent_text = text
+
+        mock_bot.send_message = capture_send
+
+        await handle_command("chat123", "/unknown_cmd", uuid.uuid4(), mock_bot)
+
+        assert sent_text is not None
+        assert "reconhecido" in sent_text.lower()
 
     @pytest.mark.asyncio
     async def test_command_case_insensitive(self):
         from api.routes.webhook import handle_command
 
-        chat_id = "123456"
-        trace_id = uuid.uuid4()
-        sent_message = None
+        mock_bot = AsyncMock()
+        sent_text = None
 
-        async def capture_message(cid, msg, tid):
-            nonlocal sent_message
-            sent_message = msg
+        async def capture_send(chat_id, text, **kwargs):
+            nonlocal sent_text
+            sent_text = text
 
-        with patch("api.routes.webhook.send_text_message", new=capture_message):
-            await handle_command(chat_id, "/START", trace_id)
+        mock_bot.send_message = capture_send
 
-        assert sent_message is not None
-        assert "Bem-vindo" in sent_message or "Amazon" in sent_message
+        with patch("api.bot.handlers.get_or_create_user", new_callable=AsyncMock) as mock_get_user:
+            mock_user = MagicMock()
+            mock_user.quota_limit = 50
+            mock_get_user.return_value = mock_user
+
+            await handle_command("chat123", "/START", uuid.uuid4(), mock_bot)
+
+        assert sent_text is not None
+        assert "Bem-vindo" in sent_text or "Amazon" in sent_text
 
     @pytest.mark.asyncio
     async def test_command_with_extra_args(self):
         from api.routes.webhook import handle_command
 
-        chat_id = "123456"
-        trace_id = uuid.uuid4()
-        sent_message = None
+        mock_bot = AsyncMock()
+        sent_text = None
 
-        async def capture_message(cid, msg, tid):
-            nonlocal sent_message
-            sent_message = msg
+        async def capture_send(chat_id, text, **kwargs):
+            nonlocal sent_text
+            sent_text = text
 
-        with patch("api.routes.webhook.send_text_message", new=capture_message):
-            await handle_command(chat_id, "/start extra args", trace_id)
+        mock_bot.send_message = capture_send
 
-        assert sent_message is not None
+        with patch("api.bot.handlers.get_or_create_user", new_callable=AsyncMock) as mock_get_user:
+            mock_user = MagicMock()
+            mock_user.quota_limit = 50
+            mock_get_user.return_value = mock_user
+
+            await handle_command("chat123", "/start extra args", uuid.uuid4(), mock_bot)
+
+        assert sent_text is not None
