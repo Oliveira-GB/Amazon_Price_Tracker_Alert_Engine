@@ -1,6 +1,6 @@
 import uuid
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
@@ -26,7 +26,6 @@ from core.logging import configure_logging
 from models.user import User
 from models.user_product import UserProduct
 from schemas.commands import ItemValidationCommand
-from typing import cast
 
 logger = configure_logging("bot_handlers")
 
