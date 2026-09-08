@@ -87,6 +87,7 @@ class TestHandleCommandIntegration:
     @pytest.mark.asyncio
     async def test_request_upgrade_command_flow(self):
         from api.routes.webhook import handle_command
+        from core.config import settings
 
         mock_bot = AsyncMock()
         mock_bot.send_message = AsyncMock()
@@ -99,9 +100,10 @@ class TestHandleCommandIntegration:
             with patch("api.bot.handlers.get_user_subscription_count", new_callable=AsyncMock) as mock_count:
                 mock_count.return_value = 45
 
-                await handle_command("chat123", "/request_upgrade", uuid.uuid4(), mock_bot)
+                with patch.object(settings, "ADMIN_TELEGRAM_ID", "admin_chat_123"):
+                    await handle_command("chat123", "/request_upgrade", uuid.uuid4(), mock_bot)
 
-                assert mock_bot.send_message.call_count == 2
+                    assert mock_bot.send_message.call_count == 2
 
     @pytest.mark.asyncio
     async def test_unknown_command_flow(self):

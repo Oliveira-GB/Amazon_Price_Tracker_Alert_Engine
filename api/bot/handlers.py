@@ -1,6 +1,6 @@
 import uuid
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
@@ -46,7 +46,7 @@ async def get_or_create_user(session: Any, chat_id: str) -> User:
         await session.flush()
 
     user.last_seen_at = datetime.now(UTC)
-    return user
+    return cast(User, user)
 
 
 async def get_user_subscription_count(session: Any, user_id: uuid.UUID) -> int:
@@ -200,9 +200,8 @@ async def handle_url(
     url: str,
     trace_id: uuid.UUID,
 ) -> None:
+    from core.rabbitmq import QUEUE_NAMES, publish_message
     from core.utils import extract_price_from_text
-    from core.rabbitmq import publish_message
-    from core.rabbitmq import QUEUE_NAMES
 
     logger.info(
         "url_submitted",
@@ -254,7 +253,7 @@ async def handle_callback(
     trace_id: uuid.UUID,
 ) -> None:
     data = callback_query.get("data", "")
-    callback_query_id = callback_query.get("id")
+    callback_query_id = str(callback_query.get("id", ""))
     chat_id = str(callback_query.get("message", {}).get("chat", {}).get("id", ""))
     message_id = callback_query.get("message", {}).get("message_id")
 

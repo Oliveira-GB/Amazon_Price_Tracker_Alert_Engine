@@ -4,8 +4,7 @@ import aio_pika
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
-from api.dependencies import TelegramSecret
-from api.bot.client import get_telegram_bot
+from api.bot.client import TelegramBot, get_telegram_bot
 from api.bot.handlers import (
     handle_callback,
     handle_delete,
@@ -16,6 +15,7 @@ from api.bot.handlers import (
     handle_start,
     handle_url,
 )
+from api.dependencies import TelegramSecret
 from core.config import settings
 from core.logging import configure_logging
 from core.rabbitmq import QUEUE_NAMES
@@ -96,7 +96,7 @@ async def receive_telegram_webhook(
 async def process_message(
     message: dict,
     trace_id: uuid.UUID,
-    bot,
+    bot: TelegramBot,
 ) -> None:
     chat_id = str(message.get("chat", {}).get("id", ""))
     text = message.get("text", "")
@@ -123,7 +123,7 @@ async def handle_command(
     chat_id: str,
     command: str,
     trace_id: uuid.UUID,
-    bot,
+    bot: TelegramBot,
 ) -> None:
     cmd = command.split()[0].lower()
     parts = command.split()
@@ -153,6 +153,6 @@ async def handle_command(
 async def process_callback_query(
     callback_query: dict,
     trace_id: uuid.UUID,
-    bot,
+    bot: TelegramBot,
 ) -> None:
     await handle_callback(bot, callback_query, trace_id)
