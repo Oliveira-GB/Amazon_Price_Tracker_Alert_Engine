@@ -11,6 +11,7 @@ class Settings(BaseSettings):
 
     RABBITMQ_URI: str = "amqp://guest:guest@localhost:5672/"
     TG_BOT_TOKEN: str = ""
+    TG_BOT_WEBHOOK_SECRET: str = "dev-secret-change-me"
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/tracker"
     REDIS_URL: str = "redis://localhost:6379/0"
     ADMIN_TELEGRAM_ID: str = ""
