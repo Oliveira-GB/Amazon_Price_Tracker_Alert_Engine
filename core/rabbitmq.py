@@ -74,6 +74,27 @@ async def get_connection() -> AsyncGenerator[Connection, None]:
         yield connection
 
 
+async def publish_message(
+    message_body: bytes,
+    routing_key: str,
+    headers: dict | None = None,
+) -> None:
+    connection = await aio_pika.connect_robust(settings.RABBITMQ_URI)
+    channel = await connection.channel()
+
+    try:
+        await channel.default_exchange.publish(
+            aio_pika.Message(
+                body=message_body,
+                delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                headers=headers or {},
+            ),
+            routing_key=routing_key,
+        )
+    finally:
+        await channel.close()
+
+
 async def setup_exchange_and_queues() -> None:
     connection = await aio_pika.connect_robust(settings.RABBITMQ_URI)
     channel = await connection.channel()

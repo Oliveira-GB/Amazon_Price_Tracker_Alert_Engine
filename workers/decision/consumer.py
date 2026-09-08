@@ -188,7 +188,7 @@ class DecisionWorker(BaseWorker):
         return f"Novo preço histórico: R$ {current_price:.2f}!{f' ({title_display})' if title_display else ''}"
 
 
-async def run() -> None:
+async def async_run() -> None:
     global logger
     logger = configure_logging("DecisionWorker")
 
@@ -220,3 +220,12 @@ async def run() -> None:
     finally:
         await worker.disconnect()
         logger.info("worker_stopped")
+
+
+def run() -> None:
+    import asyncio
+    asyncio.run(async_run())
+
+
+if __name__ == "__main__":
+    run()

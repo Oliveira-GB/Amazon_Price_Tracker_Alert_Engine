@@ -101,7 +101,7 @@ class BaseWorker(ABC):
             logger.info("shutdown_signal_received")
         self._shutdown_event.set()
 
-    async def stop(self) -> None:
+    def stop(self) -> None:
         self._shutdown_event.set()
 
 

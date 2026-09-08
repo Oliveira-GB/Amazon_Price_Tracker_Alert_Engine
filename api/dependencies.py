@@ -27,10 +27,10 @@ def verify_telegram_secret(
 ) -> str:
     from core.config import settings
 
-    if not settings.TG_BOT_TOKEN:
+    if settings.APP_ENV == "testing":
         return "dev"
 
-    if x_telegram_bot_api_secret_token != settings.TG_BOT_TOKEN:
+    if x_telegram_bot_api_secret_token != settings.TG_BOT_WEBHOOK_SECRET:
         raise HTTPException(status_code=403, detail="Invalid token")
 
     return x_telegram_bot_api_secret_token

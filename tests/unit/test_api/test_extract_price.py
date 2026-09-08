@@ -1,5 +1,5 @@
 
-from api.routes.webhook import extract_price_from_text
+from core.utils import extract_price_from_text
 
 
 class TestExtractPrice:

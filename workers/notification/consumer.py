@@ -231,7 +231,7 @@ class NotificationWorker(BaseWorker):
         await message.ack()
 
 
-async def run() -> None:
+async def async_run() -> None:
     global logger
     logger = configure_logging("NotificationWorker")
 
@@ -263,6 +263,7 @@ async def run() -> None:
 
     worker = NotificationWorker(QUEUE_NAMES["telegram_notification"])
     worker._channel = channel
+    worker._http_session = httpx.AsyncClient()
 
     shutdown_event = asyncio.Event()
 
@@ -293,6 +294,9 @@ async def run() -> None:
     finally:
         notif_task.cancel()
         maint_task.cancel()
+        if worker._http_session:
+            await worker._http_session.aclose()
+            worker._http_session = None
         await channel.close()
         await connection.close()
         logger.info("worker_stopped")
@@ -302,3 +306,12 @@ def shutdown() -> None:
     global logger
     if logger:
         logger.info("shutdown_signal_received")
+
+
+def run() -> None:
+    import asyncio
+    asyncio.run(async_run())
+
+
+if __name__ == "__main__":
+    run()
