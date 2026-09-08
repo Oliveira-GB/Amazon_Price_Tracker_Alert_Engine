@@ -99,7 +99,7 @@ async def publish_scrape_jobs() -> None:
         await connection.close()
 
 
-async def run() -> None:
+async def async_run() -> None:
     global logger
     logger = configure_logging("SchedulerWorker")
 
@@ -126,3 +126,12 @@ async def run() -> None:
     finally:
         scheduler.shutdown(wait=False)
         logger.info("scheduler_stopped")
+
+
+def run() -> None:
+    import asyncio
+    asyncio.run(async_run())
+
+
+if __name__ == "__main__":
+    run()

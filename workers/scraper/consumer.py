@@ -338,7 +338,7 @@ class ScraperWorker(BaseWorker):
             logger.info("product_marked_unavailable", product_id=str(product_id))
 
 
-async def run() -> None:
+async def async_run() -> None:
     global logger
     logger = configure_logging("ScraperWorker")
 
@@ -370,3 +370,12 @@ async def run() -> None:
     finally:
         await worker.disconnect()
         logger.info("worker_stopped")
+
+
+def run() -> None:
+    import asyncio
+    asyncio.run(async_run())
+
+
+if __name__ == "__main__":
+    run()
